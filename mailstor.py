@@ -9,6 +9,7 @@ import os
 import re
 import imaplib
 import email
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,6 +17,8 @@ load_dotenv()
 IMAP_SERVER = os.getenv("IMAP_SERVER")
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
+
+BASE_DIR = Path(__file__).resolve().parent
 
 if not all([IMAP_SERVER, EMAIL_USER, EMAIL_PASS]):
     raise ValueError("IMAP_SERVER, EMAIL_USER and EMAIL_PASS must be set in .env")
@@ -33,6 +36,12 @@ def main() -> None:
         mail.login(EMAIL_USER, EMAIL_PASS)
         mail.select("INBOX", readonly=True)
 
+        base_folder = "mailstor"
+        folder_index = 1
+        processed_count = 0
+        current_folder = BASE_DIR / f"{base_folder}{folder_index}"
+        current_folder.mkdir(exist_ok=True)
+
         status, data = mail.search(None, "ALL")
         if status != "OK":
             print("No messages found or unable to fetch IDs")
@@ -40,18 +49,12 @@ def main() -> None:
 
         message_ids = data[0].split()
 
-        base_folder = "mailstor"
-        folder_index = 1
-        processed_count = 0
-        current_folder = f"{base_folder}{folder_index}"
-        os.makedirs(current_folder, exist_ok=True)
-
         for msg_id in message_ids:
             if processed_count >= 500:
                 folder_index += 1
                 processed_count = 0
-                current_folder = f"{base_folder}{folder_index}"
-                os.makedirs(current_folder, exist_ok=True)
+                current_folder = BASE_DIR / f"{base_folder}{folder_index}"
+                current_folder.mkdir(exist_ok=True)
 
             status, msg_data = mail.fetch(msg_id, "(BODY.PEEK[])")
             if status != "OK":
@@ -71,7 +74,7 @@ def main() -> None:
                 attachment_index += 1
                 safe_name = _sanitize_filename(filename)
                 unique_name = f"{msg_id.decode()}_{attachment_index}_{safe_name}"
-                filepath = os.path.join(current_folder, unique_name)
+                filepath = current_folder / unique_name
                 with open(filepath, "wb") as f:
                     f.write(part.get_payload(decode=True))
 

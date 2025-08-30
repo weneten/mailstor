@@ -21,7 +21,9 @@ python mailstor.py
 ```
 
 The script will create folders `mailstor1`, `mailstor2`, etc., each
-containing attachments for up to 500 emails from your inbox.
+containing attachments for up to 500 emails from your inbox. Folders are
+created alongside `mailstor.py`, regardless of the working directory from
+which the script is executed.
 
 ## Web Interface
 
