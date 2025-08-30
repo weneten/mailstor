@@ -30,7 +30,7 @@ def main() -> None:
     # Connect to the IMAP server and fetch all message IDs
     mail = imaplib.IMAP4_SSL(IMAP_SERVER)
     mail.login(EMAIL_USER, EMAIL_PASS)
-    mail.select("INBOX")
+    mail.select("INBOX", readonly=True)
 
     status, data = mail.search(None, "ALL")
     if status != "OK":
@@ -53,11 +53,12 @@ def main() -> None:
             current_folder = f"{base_folder}{folder_index}"
             os.makedirs(current_folder, exist_ok=True)
 
-        status, msg_data = mail.fetch(msg_id, "(RFC822)")
+        status, msg_data = mail.fetch(msg_id, "(BODY.PEEK[])")
         if status != "OK":
             continue
 
         msg = email.message_from_bytes(msg_data[0][1])
+        attachment_index = 0
         for part in msg.walk():
             if part.get_content_maintype() == "multipart":
                 continue
@@ -67,7 +68,10 @@ def main() -> None:
             filename = part.get_filename()
             if not filename:
                 continue
-            filepath = os.path.join(current_folder, _sanitize_filename(filename))
+            attachment_index += 1
+            safe_name = _sanitize_filename(filename)
+            unique_name = f"{msg_id.decode()}_{attachment_index}_{safe_name}"
+            filepath = os.path.join(current_folder, unique_name)
             with open(filepath, "wb") as f:
                 f.write(part.get_payload(decode=True))
 
