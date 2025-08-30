@@ -22,3 +22,16 @@ python mailstor.py
 
 The script will create folders `mailstor1`, `mailstor2`, etc., each
 containing attachments for up to 500 emails from your inbox.
+
+## Web Interface
+
+A simple Flask app is provided to browse the downloaded attachments and
+optionally download or delete them.
+
+Run the app with:
+
+```bash
+python webapp.py
+```
+
+The interface will be available at `http://127.0.0.1:5000/`.
