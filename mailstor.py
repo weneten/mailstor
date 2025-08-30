@@ -1,14 +1,17 @@
-"""Simple IMAP attachment downloader.
+"""Store e‑mail attachments in IMAP folders.
 
-Downloads attachments from all emails in the INBOX and stores them in
-folder batches named ``mailstor1``, ``mailstor2`` and so on, with each
-folder containing attachments from up to 500 emails. Credentials and
-server details are loaded from a ``.env`` file.
+Attachments from all messages in the INBOX are uploaded back to the
+mail server. For every 500 processed messages a new folder is created on
+the server (``mailstor1``, ``mailstor2`` and so on) and the attachments
+are saved there as individual messages. Credentials and server details
+are loaded from a ``.env`` file.
 """
 import os
 import re
 import imaplib
 import email
+import time
+from email.message import EmailMessage
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,7 +34,13 @@ def main() -> None:
     mail = imaplib.IMAP4_SSL(IMAP_SERVER, timeout=30)
     try:
         mail.login(EMAIL_USER, EMAIL_PASS)
-        mail.select("INBOX", readonly=True)
+        mail.select("INBOX")
+
+        base_folder = "mailstor"
+        folder_index = 1
+        processed_count = 0
+        current_folder = f"{base_folder}{folder_index}"
+        mail.create(current_folder)
 
         status, data = mail.search(None, "ALL")
         if status != "OK":
@@ -40,25 +49,18 @@ def main() -> None:
 
         message_ids = data[0].split()
 
-        base_folder = "mailstor"
-        folder_index = 1
-        processed_count = 0
-        current_folder = f"{base_folder}{folder_index}"
-        os.makedirs(current_folder, exist_ok=True)
-
         for msg_id in message_ids:
             if processed_count >= 500:
                 folder_index += 1
                 processed_count = 0
                 current_folder = f"{base_folder}{folder_index}"
-                os.makedirs(current_folder, exist_ok=True)
+                mail.create(current_folder)
 
             status, msg_data = mail.fetch(msg_id, "(BODY.PEEK[])")
             if status != "OK":
                 continue
 
             msg = email.message_from_bytes(msg_data[0][1])
-            attachment_index = 0
             for part in msg.walk():
                 if part.get_content_maintype() == "multipart":
                     continue
@@ -68,12 +70,28 @@ def main() -> None:
                 filename = part.get_filename()
                 if not filename:
                     continue
-                attachment_index += 1
                 safe_name = _sanitize_filename(filename)
-                unique_name = f"{msg_id.decode()}_{attachment_index}_{safe_name}"
-                filepath = os.path.join(current_folder, unique_name)
-                with open(filepath, "wb") as f:
-                    f.write(part.get_payload(decode=True))
+
+                attachment_data = part.get_payload(decode=True)
+                maintype = part.get_content_maintype()
+                subtype = part.get_content_subtype()
+
+                new_msg = EmailMessage()
+                new_msg["Subject"] = safe_name
+                new_msg.set_content("Attachment stored by mailstor")
+                new_msg.add_attachment(
+                    attachment_data,
+                    maintype=maintype,
+                    subtype=subtype,
+                    filename=safe_name,
+                )
+
+                mail.append(
+                    current_folder,
+                    "",
+                    imaplib.Time2Internaldate(time.time()),
+                    new_msg.as_bytes(),
+                )
 
             processed_count += 1
     except KeyboardInterrupt:

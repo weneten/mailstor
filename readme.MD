@@ -1,8 +1,9 @@
 # MailStor
 
-A simple utility that uses IMAP to download e-mail attachments and store
-them in batches of 500 messages per folder. Folders are named
-`mailstor1`, `mailstor2`, and so on.
+A simple utility that uses IMAP to archive e‑mail attachments on the
+server itself. Attachments from messages in the INBOX are uploaded as
+separate messages to server-side folders named `mailstor1`, `mailstor2`
+and so on, with each folder holding attachments from up to 500 e-mails.
 
 ## Setup
 
@@ -20,18 +21,6 @@ pip install -r requirements.txt
 python mailstor.py
 ```
 
-The script will create folders `mailstor1`, `mailstor2`, etc., each
-containing attachments for up to 500 emails from your inbox.
+The script will create folders `mailstor1`, `mailstor2`, etc. **on the
+IMAP server** and store attachments there as individual messages.
 
-## Web Interface
-
-A simple Flask app is provided to browse the downloaded attachments and
-optionally download or delete them.
-
-Run the app with:
-
-```bash
-python webapp.py
-```
-
-The interface will be available at `http://127.0.0.1:5000/`.
